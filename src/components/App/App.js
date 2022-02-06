@@ -1,64 +1,68 @@
-import React, { Component } from 'react';
+import { useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { Container, Title, ContainerImg } from './App.styled';
 
-import Searchbar from '../Searchbar/Searchbar';
-import ImageGallery from '../imageGallery/imageGallery';
-import Modal from '../Modal/Modal';
+import Searchbar from '../Searchbar';
+import ImageGallery from '../imageGallery';
+import Modal from '../Modal';
 
-class App extends Component {
-  state = {
-    imageName: '',
-    showModal: false,
-    modalContent: null,
+export default function App() {
+  const [imageName, setImageName] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [modalContent, setModalContent] = useState(null);
+
+  const handleFormSubmit = imageName => {
+    setImageName(imageName);
   };
 
-  handleFormSubmit = imageName => {
-    this.setState({ imageName });
+  const toggleModal = () => {
+    setShowModal(showModal => !showModal);
+  };
+  const getModalContent = modalContent => {
+    setModalContent(modalContent);
   };
 
-  toggleModal = () => {
-    this.setState(({ showModal }) => ({
-      showModal: !showModal,
-    }));
-  };
-  getModalContent = modalContent => {
-    this.setState({ modalContent });
-  };
+  return (
+    <>
+      <Container>
+        <Title>image-finder</Title>
+      </Container>
 
-  render() {
-    const { showModal, modalContent, imageName } = this.state;
-    return (
-      <>
-        <Container>
-          <Title>image-finder</Title>
-        </Container>
-
-        <ContainerImg>
-          <Searchbar onSubmit={this.handleFormSubmit} />
-          <ImageGallery
-            getModalContent={this.getModalContent}
-            imageName={imageName}
-            openModal={this.toggleModal}
-          />
-          <Toaster position="bottom-right" />
-          {showModal && (
-            <Modal onClose={this.toggleModal} data={modalContent} />
-          )}
-        </ContainerImg>
-      </>
-    );
-  }
+      <ContainerImg>
+        <Searchbar onSubmit={handleFormSubmit} />
+        <ImageGallery
+          getModalContent={getModalContent}
+          imageName={imageName}
+          toggleModal={toggleModal}
+        />
+        <Toaster position="bottom-right" />
+        {showModal && <Modal onClose={toggleModal} data={modalContent} />}
+      </ContainerImg>
+    </>
+  );
 }
 
-// function App() {
-//   return (
-//     <Container>
-//       <Title>feedback</Title>
-//       <Section></Section>
-//       <Section></Section>
-//     </Container>
-//   );
+// class App extends Component {
+//   state = {
+//     imageName: '',
+//     showModal: false,
+//     modalContent: null,
+//   };
+
+//   render() {
+//     const { showModal, modalContent, imageName } = this.state;
+
+//   }
 // }
 
-export default App;
+// // function App() {
+// //   return (
+// //     <Container>
+// //       <Title>feedback</Title>
+// //       <Section></Section>
+// //       <Section></Section>
+// //     </Container>
+// //   );
+// // }
+
+// export default App;

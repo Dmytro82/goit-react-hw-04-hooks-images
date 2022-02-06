@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import React, { Component } from 'react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { ImageGalleryList } from './ImageGallery.styled';
 import ImageGalleryItem from '../imageGalleryItem';
@@ -7,131 +7,108 @@ import ButtonLoadMore from '../ButtonLoadMore';
 import imageFinderApi from '../ServicesApi/imgApi';
 import Loader from '../Loader';
 
-class ImageGallery extends Component {
-  state = {
-    fetchImages: [],
-    page: 1,
-    query: null,
-    showButton: false,
-    isLoading: false,
-    itemToScroll: null,
-  };
-
-  componentDidUpdate(prevProps, prevState) {
-    const { page, fetchImages, itemToScroll, query } = this.state;
-    const prevName = prevProps.imageName;
-    const nextName = this.props.imageName;
-
-    if (prevName !== nextName) {
-      this.setState({
-        query: nextName,
-        page: 1,
-        fetchImages: [],
-        itemToScroll: null,
-      });
-    }
-
-    if (prevState.query !== query || prevState.page !== page) {
-      this.getImages();
+export default function ImageGallery({
+  getModalContent,
+  imageName,
+  toggleModal,
+}) {
+  const [fetchImages, setFetchImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [showButton, setShowButton] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [itemToScroll, setItemToScroll] = useState(null);
+  //
+  useEffect(() => {
+    if (!imageName) {
       return;
     }
-    if (prevState.fetchImages !== fetchImages && page > 1) {
-      document.getElementById(itemToScroll)?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
-    }
-  }
 
-  getImages = async () => {
-    const { page, fetchImages } = this.state;
-    const query = this.props.imageName;
+    const getImages = async () => {
+      setIsLoading(true);
+      const data = await imageFinderApi(imageName, page);
+      try {
+        if (data.total === 0) {
+          toast.error('Images has not been found!');
+          setFetchImages([]);
+          setPage(1);
+          setShowButton(false);
+          return;
+        }
 
-    this.setState({ isLoading: true });
+        const quantityOfPage = data.total / 12;
 
-    const data = await imageFinderApi(query, page);
+        quantityOfPage > page ? setShowButton(true) : setShowButton(false);
 
-    try {
-      if (data.total === 0) {
-        toast.error('Images has not been found!');
-        this.setState({
-          fetchImages: [],
-          page: 1,
-          showButton: false,
-        });
-        return;
+        if (page === 1) {
+          setFetchImages(data.hits);
+          setItemToScroll(null);
+          return;
+        } else {
+          setFetchImages(state => [...state, ...data.hits]);
+          setItemToScroll(data.hits[data.hits.length - 1].id);
+        }
+      } catch {
+        toast.error('Something wrong!');
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      const quantityOfPage = data.total / 12;
-      this.setState({
-        showButton: quantityOfPage > page ? true : false,
-      });
+    getImages(imageName, page);
+  }, [imageName, page]);
 
-      this.setState({
-        fetchImages: page === 1 ? data.hits : [...fetchImages, ...data.hits],
-        itemToScroll: page === 1 ? null : data.hits[data.hits.length - 1].id,
-      });
-    } catch {
-      toast.error('Something wrong!');
-    } finally {
-      this.setState({ isLoading: false });
-    }
+  useEffect(() => {
+    document.getElementById(itemToScroll)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }, [itemToScroll]);
+  //
+  const loadMoreImages = () => {
+    setPage(page + 1);
+    setShowButton(false);
   };
 
-  loadMoreImages = () => {
-    this.setState(({ page }) => ({
-      page: page + 1,
-      showButton: false,
-    }));
-  };
-
-  openModal = event => {
+  const openModal = event => {
     if (event.target.nodeName === 'IMG') {
-      this.props.openModal();
+      toggleModal();
     }
   };
 
-  getItemContent = (largeImageURL, tags) => {
+  const getItemContent = (largeImageURL, tags) => {
     const modalContent = {
       largeImageURL,
       tags,
     };
-
-    this.props.getModalContent(modalContent);
+    getModalContent(modalContent);
   };
 
-  render() {
-    const { fetchImages, showButton, isLoading } = this.state;
+  return (
+    <>
+      {fetchImages.length > 0 && (
+        <ImageGalleryList onClick={openModal}>
+          {fetchImages.map(
+            ({ id, tags, webformatURL, largeImageURL }, item) => (
+              <ImageGalleryItem
+                key={item}
+                imageUrl={webformatURL}
+                imageTag={tags}
+                largeImageURL={largeImageURL}
+                getItemContent={getItemContent}
+                id={id}
+              />
+            ),
+          )}
+        </ImageGalleryList>
+      )}
 
-    return (
-      <>
-        {fetchImages.length > 0 && (
-          <ImageGalleryList onClick={this.openModal}>
-            {fetchImages.map(
-              ({ id, tags, webformatURL, largeImageURL }, item) => (
-                <ImageGalleryItem
-                  key={item}
-                  imageUrl={webformatURL}
-                  imageTag={tags}
-                  largeImageURL={largeImageURL}
-                  getItemContent={this.getItemContent}
-                  id={id}
-                />
-              ),
-            )}
-          </ImageGalleryList>
-        )}
-
-        {isLoading ? (
-          <Loader />
-        ) : (
-          showButton && (
-            <ButtonLoadMore onloadMoreImages={this.loadMoreImages} />
-          )
-        )}
-      </>
-    );
-  }
+      {isLoading ? (
+        <Loader />
+      ) : (
+        showButton && <ButtonLoadMore onloadMoreImages={loadMoreImages} />
+      )}
+    </>
+  );
 }
 
 ImageGallery.propTypes = {
@@ -139,5 +116,3 @@ ImageGallery.propTypes = {
   getModalContent: PropTypes.func.isRequired,
   openModal: PropTypes.func.isRequired,
 };
-
-export default ImageGallery;
